@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
-// We change ': NextConfig' to ': any' to force Vercel to accept these settings
 const nextConfig: any = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // We deleted the 'eslint' part because it was breaking the build
   typescript: {
     ignoreBuildErrors: true,
   },

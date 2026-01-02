@@ -45,6 +45,8 @@ export default function PostItem() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. Send data to server
     const res = await fetch('/api/create-listing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -52,11 +54,15 @@ export default function PostItem() {
     });
 
     const data = await res.json();
+
+    // 2. Handle the result
     if (data.success) {
       alert('Success! Item Posted.');
-      router.push('/');
+      // CHANGE: Send user to their profile instead of home
+      router.push('/profile'); 
     } else {
-      alert('Error posting item');
+      // If it fails (maybe the user isn't logged in?), this alerts the error
+      alert('Error posting item: ' + (data.error || 'Unknown error'));
     }
   };
 

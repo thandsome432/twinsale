@@ -59,10 +59,14 @@ export default function Home({ listings }) {
           <div className="grid md:grid-cols-3 gap-8">
             {listings.map((item) => (
               <div key={item.id} className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
-                {/* Image Placeholder */}
-                <div className="h-48 bg-gray-200 flex items-center justify-center text-gray-400">
-                  item photo
-                </div>
+                {/* Image Placeholder - Uses item image or falls back to gray box */}
+                {item.image_url ? (
+                   <img src={item.image_url} alt={item.title} className="h-48 w-full object-cover" />
+                ) : (
+                  <div className="h-48 bg-gray-200 flex items-center justify-center text-gray-400">
+                    No Photo
+                  </div>
+                )}
                 
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-3">
@@ -77,6 +81,11 @@ export default function Home({ listings }) {
                   <h3 className="text-xl font-bold mb-2 text-gray-900 group-hover:text-brand-blue transition">{item.title}</h3>
                   <p className="text-gray-500 text-sm mb-4 line-clamp-2">{item.description}</p>
                   
+                  {/* Price Tag */}
+                  <div className="text-lg font-bold text-gray-800 mb-4">
+                    ${item.price}
+                  </div>
+
                   <Link href={`/listing/${item.id}`} className="block w-full text-center bg-gray-50 border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-brand-blue hover:text-white hover:border-transparent transition">
                     View Details
                   </Link>
@@ -93,8 +102,14 @@ export default function Home({ listings }) {
 export async function getServerSideProps() {
   try {
     const result = await db.query("SELECT * FROM listings WHERE status = 'active' ORDER BY id DESC");
-    return { props: { listings: result.rows } };
+    
+    // THIS IS THE FIX:
+    // We convert the database result to simple JSON (Text) so Next.js doesn't crash on the Date object.
+    const listings = JSON.parse(JSON.stringify(result.rows));
+
+    return { props: { listings } };
   } catch (error) {
+    console.error("Database Error:", error);
     return { props: { listings: [] } };
   }
 }

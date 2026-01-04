@@ -37,6 +37,31 @@ export default function Profile() {
     setLoading(false);
   };
 
+  // --- NEW: DELETE FUNCTION ---
+  const handleDelete = async (listingId) => {
+    if (!confirm("Are you sure you want to delete this item? This cannot be undone.")) return;
+
+    try {
+      const res = await fetch('/api/delete-listing', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId, user_email: user.email }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Remove the item from the screen instantly
+        setListings(listings.filter(item => item.id !== listingId));
+        alert("Item deleted.");
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      alert("Failed to delete.");
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -70,30 +95,43 @@ export default function Profile() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {listings.map((item) => (
-              <Link key={item.id} href={`/listing/${item.id}`} className="block group">
-                <div className="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition">
-                  <div className="aspect-square bg-gray-200 relative">
-                    {item.image_url ? (
-                      <img src={item.image_url} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">No Photo</div>
-                    )}
+              <div key={item.id} className="block group relative bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition">
+                
+                {/* DELETE BUTTON (Top Right) */}
+                <button 
+                  onClick={() => handleDelete(item.id)}
+                  className="absolute top-2 right-2 bg-white/90 p-2 rounded-full shadow-md text-red-500 hover:bg-red-100 z-10 transition"
+                  title="Delete Item"
+                >
+                  🗑️
+                </button>
+
+                <Link href={`/listing/${item.id}`}>
+                  <div className="cursor-pointer">
+                    <div className="aspect-square bg-gray-200 relative">
+                      {item.image_url ? (
+                        <img src={item.image_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">No Photo</div>
+                      )}
+                      
+                      {/* Status Badge (Moved to Left) */}
+                      <div className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold uppercase text-white ${item.status === 'sold' ? 'bg-red-500' : 'bg-green-500'}`}>
+                        {item.status === 'sold' ? 'SOLD' : 'ACTIVE'}
+                      </div>
+                    </div>
                     
-                    {/* Status Badge */}
-                    <div className={`absolute top-2 right-2 px-2 py-1 rounded text-[10px] font-bold uppercase text-white ${item.status === 'sold' ? 'bg-red-500' : 'bg-green-500'}`}>
-                      {item.status === 'sold' ? 'SOLD' : 'ACTIVE'}
+                    <div className="p-4">
+                      <h3 className="font-bold text-lg truncate">{item.title}</h3>
+                      <p className="text-gray-500 text-sm mb-2">{item.type === 'raffle' ? '🎟️ Raffle' : '🔨 Auction'}</p>
+                      <p className="font-bold text-brand-blue">
+                        {item.type === 'raffle' ? `$${item.ticket_price}/ticket` : `$${item.price}`}
+                      </p>
                     </div>
                   </div>
-                  
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg truncate">{item.title}</h3>
-                    <p className="text-gray-500 text-sm mb-2">{item.type === 'raffle' ? '🎟️ Raffle' : '🔨 Auction'}</p>
-                    <p className="font-bold text-brand-blue">
-                      {item.type === 'raffle' ? `$${item.ticket_price}/ticket` : `$${item.price}`}
-                    </p>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+
+              </div>
             ))}
           </div>
         )}

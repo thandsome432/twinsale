@@ -42,6 +42,12 @@ export default function Navbar() {
           {/* DYNAMIC SECTION: Show User Info OR Login button */}
           {user ? (
             <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
+              
+              {/* NEW: Inbox Link */}
+              <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative">
+                📬
+              </Link>
+
               <span className="text-sm font-light hidden sm:block">
                 Hello, <span className="font-bold">{user.email || 'User'}</span>
               </span>

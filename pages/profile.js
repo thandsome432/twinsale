@@ -37,7 +37,7 @@ export default function Profile() {
     setLoading(false);
   };
 
-  // --- NEW: DELETE FUNCTION ---
+  // --- DELETE FUNCTION ---
   const handleDelete = async (listingId) => {
     if (!confirm("Are you sure you want to delete this item? This cannot be undone.")) return;
 
@@ -115,7 +115,7 @@ export default function Profile() {
                         <div className="w-full h-full flex items-center justify-center text-gray-400">No Photo</div>
                       )}
                       
-                      {/* Status Badge (Moved to Left) */}
+                      {/* Status Badge */}
                       <div className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold uppercase text-white ${item.status === 'sold' ? 'bg-red-500' : 'bg-green-500'}`}>
                         {item.status === 'sold' ? 'SOLD' : 'ACTIVE'}
                       </div>

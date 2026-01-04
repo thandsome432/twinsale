@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import db from '../../db';
+import { useRouter } from 'next/router';
 
 export default function ListingDetails({ item, chats = [], meetupStatus = {} }) {
   const [user, setUser] = useState(null);
@@ -10,21 +11,22 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   const [chatHistory, setChatHistory] = useState(chats);
   const [meetup, setMeetup] = useState(meetupStatus);
   const [uploading, setUploading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (stored) setUser(JSON.parse(stored));
   }, []);
 
-  // 1. DETERMINE ROLES & STATUS
+  // 1. IDENTIFY ROLES
   const isSeller = user && item && user.email === item.user_email;
   const myRole = isSeller ? 'seller' : 'buyer';
   
+  // 2. GET SELFIE STATUS (Safely handle nulls)
   const mySelfie = isSeller ? meetup?.seller_selfie : meetup?.buyer_selfie;
   const theirSelfie = isSeller ? meetup?.buyer_selfie : meetup?.seller_selfie;
-  
-  // The "Lock" opens only if BOTH have uploaded
   const isDealVerified = meetup?.seller_selfie && meetup?.buyer_selfie;
+  const isCompleted = meetup?.status === 'completed';
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -55,10 +57,12 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     body.append('file', file);
 
     try {
+      // Upload to your upload API
       const uploadRes = await fetch('/api/upload', { method: 'POST', body });
       const uploadData = await uploadRes.json();
 
       if (uploadData.url) {
+        // Save URL to Database
         const dbRes = await fetch('/api/update-meetup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -70,17 +74,33 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
           }),
         });
         const dbData = await dbRes.json();
+        
         if (dbData.success) {
-          setMeetup(dbData.meetup);
-          // If this was the last selfie needed, alert them!
-          if (theirSelfie) alert("✅ Matched! Location Unlocked.");
-          else alert("✅ Selfie Uploaded! Waiting for partner...");
+          setMeetup(dbData.meetup); // Update state immediately so image shows
+          alert("✅ Selfie Uploaded! It will be deleted after the sale.");
         }
       }
     } catch (err) {
-      alert("Upload failed");
+      alert("Upload failed. Make sure your file is an image.");
     }
     setUploading(false);
+  };
+
+  const handleCompleteTransaction = async () => {
+    if (!confirm("Are you sure? This will delete all selfies and mark the item as sold.")) return;
+
+    const res = await fetch('/api/complete-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: item.id }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      setMeetup(data.meetup); // This clears the selfies from the UI
+      alert("Transaction Completed! Selfies have been permanently deleted.");
+      setShowChat(false);
+    }
   };
 
   if (!item) return <div className="text-center mt-20">Item not found</div>;
@@ -91,7 +111,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
       
       <main className="max-w-5xl mx-auto p-4 md:p-8 mt-6 grid md:grid-cols-2 gap-10">
         
-        {/* LEFT COLUMN: Image & Map Lock */}
+        {/* LEFT COLUMN: Image & Status */}
         <div className="space-y-6">
           <div className="bg-white p-4 rounded-2xl shadow-sm border">
             <div className="aspect-square bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
@@ -103,54 +123,42 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             </div>
           </div>
 
-          {/* --- THE SAFETY LOCK (New Feature) --- */}
-          <div className={`p-6 rounded-2xl border-2 transition-all duration-500 ${isDealVerified ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-gray-300 border-dashed'}`}>
-            <h3 className={`font-bold text-lg mb-2 flex items-center gap-2 ${isDealVerified ? 'text-green-800' : 'text-gray-500'}`}>
-              {isDealVerified ? '🔓 Meetup Location Unlocked' : '🔒 Meetup Location Locked'}
-            </h3>
-            
-            {isDealVerified ? (
-              <div>
-                <p className="text-green-700 mb-2">The location has been revealed for both parties.</p>
-                <div className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
-                  <p className="font-bold text-gray-900">📍 Odessa Police Dept. (Safe Zone)</p>
-                  <p className="text-sm text-gray-500">205 N Grant Ave, Odessa, TX 79761</p>
-                  <a 
-                    href="https://www.google.com/maps/search/?api=1&query=Odessa+Police+Department" 
-                    target="_blank"
-                    className="block mt-2 text-center bg-green-600 text-white text-xs font-bold py-2 rounded hover:bg-green-700"
-                  >
-                    Open in Google Maps
-                  </a>
+          {/* --- SAFETY LOCK --- */}
+          {isCompleted ? (
+            <div className="bg-green-100 p-6 rounded-2xl border border-green-400 text-center">
+              <h3 className="text-2xl font-bold text-green-800">🎉 Sold & Safe!</h3>
+              <p className="text-green-700 mt-2">Transaction completed. All verification data has been deleted.</p>
+            </div>
+          ) : (
+            <div className={`p-6 rounded-2xl border-2 transition-all duration-500 ${isDealVerified ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-gray-300 border-dashed'}`}>
+              <h3 className={`font-bold text-lg mb-2 flex items-center gap-2 ${isDealVerified ? 'text-green-800' : 'text-gray-500'}`}>
+                {isDealVerified ? '🔓 Meetup Location Unlocked' : '🔒 Meetup Location Locked'}
+              </h3>
+              
+              {isDealVerified ? (
+                <div>
+                  <div className="bg-white p-3 rounded-lg border border-green-200 shadow-sm mb-3">
+                    <p className="font-bold text-gray-900">📍 Odessa Police Dept. (Safe Zone)</p>
+                    <p className="text-sm text-gray-500">205 N Grant Ave, Odessa, TX 79761</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm text-gray-500 mb-4">
-                  To see the meeting spot, both the Buyer and Seller must verify their identity by uploading a selfie.
-                </p>
-                <div className="flex gap-2">
-                   <div className={`flex-1 p-2 rounded text-center text-xs font-bold ${mySelfie ? 'bg-green-200 text-green-800' : 'bg-red-100 text-red-500'}`}>
-                     {mySelfie ? 'You: Ready ✅' : 'You: Pending ❌'}
-                   </div>
-                   <div className={`flex-1 p-2 rounded text-center text-xs font-bold ${theirSelfie ? 'bg-green-200 text-green-800' : 'bg-red-100 text-red-500'}`}>
-                     {theirSelfie ? 'Them: Ready ✅' : 'Them: Pending ❌'}
-                   </div>
+              ) : (
+                <div className="text-sm text-gray-500 mb-4">
+                  <p className="mb-2">Upload a selfie to unlock the meeting spot.</p>
+                  <p className="text-xs text-blue-500 bg-blue-50 inline-block px-2 py-1 rounded">
+                    🛡️ Privacy: Selfies are DELETED after the sale.
+                  </p>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* RIGHT COLUMN: Details & Chat */}
+        {/* RIGHT COLUMN: Chat Button */}
         <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{item.title}</h1>
             <p className="text-3xl font-bold text-brand-blue">${item.price}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-700 mb-2">Description</h3>
-            <p className="text-gray-600 leading-relaxed">{item.description}</p>
           </div>
 
           <div className="flex gap-4">
@@ -172,12 +180,12 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
       {/* --- POPUP CHAT BOX --- */}
       {showChat && (
-        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl shadow-2xl border border-gray-200 z-40 flex flex-col h-[500px]">
+        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl shadow-2xl border border-gray-200 z-40 flex flex-col h-[550px]">
           <div className="bg-brand-blue text-white p-4 rounded-t-xl flex justify-between items-center shadow-md">
             <div>
               <h3 className="font-bold text-lg">Chat</h3>
               <p className="text-xs text-blue-200">
-                {isDealVerified ? '✅ Location Shared' : '⚠️ Verification Pending'}
+                {isDealVerified ? '✅ Safe to Meet' : '⚠️ Verification Pending'}
               </p>
             </div>
             <button onClick={() => setShowChat(false)} className="text-white hover:bg-blue-700 p-1 rounded">✕</button>
@@ -195,25 +203,42 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             ))}
           </div>
 
-          {/* SAFETY BAR */}
-          <div className="bg-blue-50 p-2 border-t flex justify-between items-center px-4">
-             <div className="flex items-center gap-2 text-xs text-gray-600">
-               <span>Status:</span>
-               {mySelfie ? <span className="text-green-600 font-bold">You ✅</span> : <span className="text-red-500 font-bold">You ❌</span>}
-               <span>|</span>
-               {theirSelfie ? <span className="text-green-600 font-bold">Them ✅</span> : <span className="text-red-500 font-bold">Them ❌</span>}
+          {/* COMPLETION AREA */}
+          {isDealVerified && !isCompleted && (
+             <div className="p-3 bg-green-50 border-t border-green-200">
+               <button 
+                 onClick={handleCompleteTransaction}
+                 className="w-full bg-green-600 text-white font-bold py-2 rounded-lg shadow hover:bg-green-700 transition flex items-center justify-center gap-2"
+               >
+                 ✅ Mark Transaction Complete
+               </button>
+               <p className="text-[10px] text-center text-green-700 mt-1">
+                 (This will delete all selfies permanently)
+               </p>
              </div>
-             <button onClick={() => setShowSafety(true)} className="text-xs bg-white border border-gray-300 px-2 py-1 rounded shadow-sm hover:bg-gray-100">
-               📷 Verify
-             </button>
-          </div>
+          )}
+
+          {/* NORMAL SAFETY BAR (Only shows if NOT verified) */}
+          {!isDealVerified && !isCompleted && (
+             <div className="bg-blue-50 p-2 border-t flex justify-between items-center px-4">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  {mySelfie ? <span className="text-green-600 font-bold">You ✅</span> : <span className="text-red-500 font-bold">You ❌</span>}
+                  <span>|</span>
+                  {theirSelfie ? <span className="text-green-600 font-bold">Them ✅</span> : <span className="text-red-500 font-bold">Them ❌</span>}
+                </div>
+                <button onClick={() => setShowSafety(true)} className="text-xs bg-white border border-gray-300 px-2 py-1 rounded shadow-sm hover:bg-gray-100">
+                  📷 Verify
+                </button>
+             </div>
+          )}
 
           <form onSubmit={handleSendMessage} className="p-3 bg-white border-t flex gap-2">
             <input 
               type="text" value={message} onChange={(e) => setMessage(e.target.value)}
               placeholder="Type message..." className="flex-1 border rounded-full px-4 py-2"
+              disabled={isCompleted}
             />
-            <button className="bg-brand-safe text-white px-4 py-2 rounded-full">➤</button>
+            <button disabled={isCompleted} className="bg-brand-safe text-white px-4 py-2 rounded-full disabled:bg-gray-300">➤</button>
           </form>
         </div>
       )}
@@ -223,18 +248,18 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center">
             <h2 className="text-2xl font-bold mb-2">Safety Check 🛡️</h2>
-            <p className="text-gray-500 text-sm mb-6">Both users must upload a selfie before the location is revealed.</p>
+            <p className="text-gray-500 text-sm mb-6">Your selfie is only used for this meetup and is deleted after the sale.</p>
             
             {mySelfie ? (
                <div className="mb-6">
-                 <img src={mySelfie} className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-500" />
+                 {/* Added key to force re-render when image updates */}
+                 <img key={mySelfie} src={mySelfie} className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-500 shadow-md" />
                  <p className="text-green-600 font-bold mt-2">You are Verified!</p>
-                 <p className="text-xs text-gray-400">Waiting for other party...</p>
                </div>
             ) : (
-               <label className="block w-full h-40 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 mb-6">
+               <label className="block w-full h-40 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 mb-6 transition">
                  {uploading ? (
-                   <span className="text-blue-500 font-bold">Uploading...</span>
+                   <span className="text-blue-500 font-bold animate-pulse">Uploading...</span>
                  ) : (
                    <>
                      <span className="text-4xl mb-2">📸</span>
@@ -245,7 +270,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
                </label>
             )}
 
-            <button onClick={() => setShowSafety(false)} className="w-full bg-gray-200 py-3 rounded-xl font-bold">
+            <button onClick={() => setShowSafety(false)} className="w-full bg-gray-200 py-3 rounded-xl font-bold hover:bg-gray-300">
               Close
             </button>
           </div>

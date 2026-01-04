@@ -6,8 +6,8 @@ import { useRouter } from 'next/router';
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [listings, setListings] = useState([]);
-  const [wins, setWins] = useState([]); // NEW: Store wins
-  const [activeTab, setActiveTab] = useState('selling'); // NEW: Switcher
+  const [wins, setWins] = useState([]);
+  const [activeTab, setActiveTab] = useState('selling'); 
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -28,7 +28,7 @@ export default function Profile() {
       const res = await fetch(`/api/my-profile?email=${email}`);
       const data = await res.json();
       if (data.listings) setListings(data.listings);
-      if (data.wins) setWins(data.wins); // NEW
+      if (data.wins) setWins(data.wins);
     } catch (error) {
       console.error(error);
     }
@@ -36,16 +36,20 @@ export default function Profile() {
   };
 
   const handleDelete = async (listingId) => {
-    if (!confirm("Delete this item?")) return;
+    if (!confirm("Are you sure you want to delete this item? This cannot be undone.")) return;
+
     try {
       const res = await fetch('/api/delete-listing', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listing_id: listingId, user_email: user.email }),
       });
+
       const data = await res.json();
+
       if (data.success) {
         setListings(listings.filter(item => item.id !== listingId));
+        alert("Item deleted.");
       } else {
         alert(data.error);
       }
@@ -96,15 +100,28 @@ export default function Profile() {
             {(activeTab === 'selling' ? listings : wins).map((item) => (
               <div key={item.id} className={`block group relative bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition ${activeTab === 'wins' ? 'border-2 border-yellow-400' : 'border'}`}>
                 
-                {/* DELETE BUTTON (Only for Selling) */}
+                {/* --- SELLER TOOLS (Only on Selling Tab) --- */}
                 {activeTab === 'selling' && (
-                  <button 
-                    onClick={() => handleDelete(item.id)}
-                    className="absolute top-2 right-2 bg-white/90 p-2 rounded-full shadow-md text-red-500 hover:bg-red-100 z-10"
-                    title="Delete Item"
-                  >
-                    🗑️
-                  </button>
+                  <>
+                    {/* EDIT BUTTON (Pencil) */}
+                    <Link href={`/edit/${item.id}`}>
+                        <button 
+                        className="absolute top-2 right-12 bg-white/90 p-2 rounded-full shadow-md text-blue-500 hover:bg-blue-100 z-10 transition hover:scale-110"
+                        title="Edit Item"
+                        >
+                        ✏️
+                        </button>
+                    </Link>
+
+                    {/* DELETE BUTTON (Trash) */}
+                    <button 
+                      onClick={() => handleDelete(item.id)}
+                      className="absolute top-2 right-2 bg-white/90 p-2 rounded-full shadow-md text-red-500 hover:bg-red-100 z-10 transition hover:scale-110"
+                      title="Delete Item"
+                    >
+                      🗑️
+                    </button>
+                  </>
                 )}
 
                 <Link href={`/listing/${item.id}`}>
@@ -117,11 +134,21 @@ export default function Profile() {
                             <span className="bg-yellow-500 text-white font-bold px-3 py-1 rounded shadow-lg">🏆 WINNER</span>
                          </div>
                       )}
+
+                       {/* Status Badge (if selling) */}
+                       {activeTab === 'selling' && (
+                        <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-[10px] font-bold uppercase text-white ${item.status === 'sold' ? 'bg-red-500' : 'bg-green-500'}`}>
+                            {item.status === 'sold' ? 'SOLD' : 'ACTIVE'}
+                        </div>
+                       )}
                     </div>
                     
                     <div className="p-4">
                       <h3 className="font-bold text-lg truncate">{item.title}</h3>
                       <p className="text-sm text-gray-500">{item.type === 'raffle' ? '🎟️ Raffle' : '🔨 Auction'}</p>
+                      <p className="font-bold text-brand-blue mt-1">
+                        {item.type === 'raffle' ? `$${item.ticket_price}/ticket` : `$${item.price}`}
+                      </p>
                     </div>
                   </div>
                 </Link>
@@ -130,8 +157,15 @@ export default function Profile() {
 
             {/* Empty State */}
             {(activeTab === 'selling' ? listings : wins).length === 0 && (
-              <div className="col-span-full text-center py-20 text-gray-400">
-                {activeTab === 'selling' ? "You aren't selling anything yet." : "No wins yet. Go enter a raffle!"}
+              <div className="col-span-full text-center py-20 text-gray-400 bg-white rounded-xl border border-dashed">
+                {activeTab === 'selling' ? (
+                    <div>
+                        <p className="mb-4">You aren't selling anything yet.</p>
+                        <Link href="/post-item" className="bg-black text-white px-6 py-2 rounded-lg font-bold">Start Selling</Link>
+                    </div>
+                ) : (
+                    <p>No wins yet. Go enter a raffle!</p>
+                )}
               </div>
             )}
 

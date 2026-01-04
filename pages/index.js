@@ -95,7 +95,7 @@ export default function Home({ listings }) {
                         <span>No Photo</span>
                       </div>
                     )}
-                    {/* Type Badge (Raffle/Auction) */}
+                    {/* Type Badge */}
                      <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide text-white shadow-sm ${
                         item.type === 'raffle' ? 'bg-purple-600' : 'bg-black/70'
                       }`}>
@@ -103,7 +103,7 @@ export default function Home({ listings }) {
                       </div>
                   </div>
 
-                  {/* Text Details (Price is HUGE, Title is Small) */}
+                  {/* Text Details */}
                   <div>
                     <div className="font-bold text-gray-900 text-lg">
                       ${Number(item.price).toLocaleString()}
@@ -128,10 +128,8 @@ export default function Home({ listings }) {
 
 export async function getServerSideProps() {
   try {
-    // Fetch active items
+    // FIX: Only fetch items where status is 'active'
     const result = await db.query("SELECT * FROM listings WHERE status = 'active' ORDER BY id DESC");
-    
-    // Convert Dates to Text to avoid "Serialization" error
     const listings = JSON.parse(JSON.stringify(result.rows));
 
     return { props: { listings } };

@@ -1,17 +1,20 @@
 import Navbar from '../components/Navbar';
 import db from '../db';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function Home({ listings }) {
-  // Categories like FB Marketplace
+  const router = useRouter();
+  const currentCategory = router.query.category || 'all';
+
+  // These IDs MUST match what you used in post-item.js
   const categories = [
-    { name: "Vehicles", icon: "🚗" },
-    { name: "Property", icon: "🏠" },
-    { name: "Apparel", icon: "👕" },
-    { name: "Electronics", icon: "📱" },
-    { name: "Entertainment", icon: "🎮" },
-    { name: "Family", icon: "🧸" },
-    { name: "Free Stuff", icon: "🎁" },
+    { id: 'autos', name: "Vehicles", icon: "🚗" },
+    { id: 'electronics', name: "Electronics", icon: "📱" },
+    { id: 'fashion', name: "Apparel", icon: "👕" },
+    { id: 'home', name: "Home & Garden", icon: "🏠" },
+    { id: 'collectibles', name: "Collectibles", icon: "🃏" },
+    { id: 'entertainment', name: "Entertainment", icon: "🎮" },
   ];
 
   return (
@@ -20,7 +23,7 @@ export default function Home({ listings }) {
 
       <main className="max-w-[1920px] mx-auto flex pt-4">
         
-        {/* --- LEFT SIDEBAR (Desktop Only) --- */}
+        {/* --- LEFT SIDEBAR (Desktop) --- */}
         <aside className="hidden lg:block w-80 p-4 sticky top-4 h-screen overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Marketplace</h2>
@@ -30,16 +33,22 @@ export default function Home({ listings }) {
           </div>
 
           <div className="space-y-1">
-            <button className="w-full flex items-center p-3 bg-gray-100 rounded-lg font-semibold text-left">
-              <span className="bg-blue-500 text-white p-2 rounded-full mr-3 text-sm">🏪</span>
-              Browse all
-            </button>
-            {/* Sidebar Categories */}
+            {/* "Browse All" Button */}
+            <Link href="/">
+              <div className={`w-full flex items-center p-3 rounded-lg font-semibold text-left cursor-pointer transition ${currentCategory === 'all' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'}`}>
+                <span className="bg-blue-500 text-white p-2 rounded-full mr-3 text-sm">🏪</span>
+                Browse all
+              </div>
+            </Link>
+
+            {/* Category Buttons */}
             {categories.map((cat) => (
-              <button key={cat.name} className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg font-medium text-gray-700 text-left transition">
-                <span className="bg-gray-200 p-2 rounded-full mr-3 text-sm">{cat.icon}</span>
-                {cat.name}
-              </button>
+              <Link key={cat.id} href={`/?category=${cat.id}`}>
+                <div className={`w-full flex items-center p-3 rounded-lg font-medium text-left cursor-pointer transition ${currentCategory === cat.id ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'hover:bg-gray-100 text-gray-700'}`}>
+                  <span className="bg-gray-200 p-2 rounded-full mr-3 text-sm">{cat.icon}</span>
+                  {cat.name}
+                </div>
+              </Link>
             ))}
           </div>
           
@@ -57,24 +66,29 @@ export default function Home({ listings }) {
             <Link href="/post-item" className="flex-shrink-0 bg-gray-100 px-5 py-2 rounded-full font-bold text-sm whitespace-nowrap">
               🖊️ Sell
             </Link>
+            <Link href="/" className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap ${currentCategory === 'all' ? 'bg-black text-white' : 'bg-gray-100'}`}>
+              All
+            </Link>
             {categories.map((cat) => (
-               <button key={cat.name} className="flex-shrink-0 bg-gray-100 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap hover:bg-gray-200">
+               <Link key={cat.id} href={`/?category=${cat.id}`} className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap ${currentCategory === cat.id ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
                  {cat.name}
-               </button>
+               </Link>
             ))}
           </div>
 
           <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-xl font-bold text-gray-900">Today's Picks</h3>
+            <h3 className="text-xl font-bold text-gray-900">
+              {currentCategory === 'all' ? "Today's Picks" : categories.find(c => c.id === currentCategory)?.name || "Results"}
+            </h3>
             <span className="text-blue-600 text-sm cursor-pointer hover:underline lg:hidden">Dallas · 40mi</span>
           </div>
 
           {/* --- THE GRID --- */}
           {listings.length === 0 ? (
             <div className="text-center py-32 bg-gray-50 rounded-xl">
-              <p className="text-gray-400 text-xl">No items found in this area.</p>
+              <p className="text-gray-400 text-xl">No items found in this category.</p>
               <Link href="/post-item" className="text-blue-600 font-bold hover:underline mt-2 inline-block">
-                Be the first to sell something!
+                Be the first to list one!
               </Link>
             </div>
           ) : (
@@ -95,18 +109,19 @@ export default function Home({ listings }) {
                         <span>No Photo</span>
                       </div>
                     )}
-                    {/* Type Badge */}
+                    
+                    {/* Badge: Auction or Raffle */}
                      <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide text-white shadow-sm ${
                         item.type === 'raffle' ? 'bg-purple-600' : 'bg-black/70'
                       }`}>
-                        {item.type}
+                        {item.type === 'raffle' ? '🎟️ Raffle' : '🔨 Auction'}
                       </div>
                   </div>
 
                   {/* Text Details */}
                   <div>
                     <div className="font-bold text-gray-900 text-lg">
-                      ${Number(item.price).toLocaleString()}
+                      {item.type === 'raffle' ? `$${item.ticket_price}` : `$${Number(item.price).toLocaleString()}`}
                     </div>
                     <div className="text-gray-900 font-medium text-base truncate leading-snug">
                       {item.title}
@@ -126,10 +141,25 @@ export default function Home({ listings }) {
   );
 }
 
-export async function getServerSideProps() {
+// --- SERVER SIDE LOGIC ---
+export async function getServerSideProps(context) {
+  const { category } = context.query;
+
   try {
-    // FIX: Only fetch items where status is 'active'
-    const result = await db.query("SELECT * FROM listings WHERE status = 'active' ORDER BY id DESC");
+    let queryText = "SELECT * FROM listings WHERE status = 'active'";
+    let queryParams = [];
+
+    // IF a category is selected (and it's not 'all'), add the filter
+    if (category && category !== 'all') {
+      queryText += " AND category = $1";
+      queryParams.push(category);
+    }
+
+    queryText += " ORDER BY id DESC";
+
+    const result = await db.query(queryText, queryParams);
+    
+    // Convert Dates to Text to avoid "Serialization" error
     const listings = JSON.parse(JSON.stringify(result.rows));
 
     return { props: { listings } };

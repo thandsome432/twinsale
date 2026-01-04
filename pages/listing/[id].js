@@ -19,8 +19,11 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
   // RAFFLE STATE
   const [ticketsSold, setTicketsSold] = useState(item ? item.tickets_sold : 0);
-  const [ticketPrice, setTicketPrice] = useState(item ? (item.ticket_price || 10) : 10); // Default $10 if null
-  const [totalTickets, setTotalTickets] = useState(item ? (item.total_tickets || 100) : 100); // Default 100 if null
+  const [ticketPrice, setTicketPrice] = useState(item ? (item.ticket_price || 10) : 10);
+  const [totalTickets, setTotalTickets] = useState(item ? (item.total_tickets || 100) : 100);
+  
+  // NEW: Winner State
+  const [winner, setWinner] = useState(item ? item.winner_email : null);
 
   const router = useRouter();
 
@@ -55,7 +58,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   const mySelfie = isSeller ? meetup?.seller_selfie : meetup?.buyer_selfie;
   const theirSelfie = isSeller ? meetup?.buyer_selfie : meetup?.seller_selfie;
   const isDealVerified = meetup?.seller_selfie && meetup?.buyer_selfie;
-  const isCompleted = meetup?.status === 'completed';
+  const isCompleted = meetup?.status === 'completed' || meetup?.status === 'sold';
 
   // --- ACTIONS ---
   const handlePlaceBid = async (e) => {
@@ -93,8 +96,24 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     } else alert(data.error);
   };
 
-  // ... (Keep handleSendMessage, handleSelfieUpload, handleCompleteTransaction same as before) ...
-  // Re-pasting them briefly for completeness:
+  // --- NEW: DRAW WINNER ---
+  const handleDrawWinner = async () => {
+    if (!confirm("Are you sure? This will pick a random winner and end the raffle.")) return;
+
+    const res = await fetch('/api/pick-winner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: item.id, user_email: user.email }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setWinner(data.winner);
+      alert(`🎉 Winner Picked: ${data.winner}`);
+    } else {
+      alert(data.error);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -135,9 +154,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   };
 
   if (!item) return <div className="text-center mt-20">Item not found</div>;
-
-  // LOGIC: Is this a Raffle or Auction?
-  // We check if the item type (converted to lowercase) is 'raffle'
   const isRaffle = item.type && item.type.toLowerCase() === 'raffle';
 
   return (
@@ -151,15 +167,20 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
           <div className="bg-white p-4 rounded-2xl shadow-sm border">
             <div className="aspect-square bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
                {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="text-gray-400">No Photo</span>}
-               {/* Badge */}
                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase text-white shadow-md ${isRaffle ? 'bg-purple-600' : 'bg-black'}`}>
                  {isRaffle ? '🎟️ Raffle' : '🔨 Auction'}
                </div>
             </div>
           </div>
           
-          {/* Safety Box */}
-          {isCompleted ? (
+          {/* WINNER BOX OR SAFETY BOX */}
+          {winner ? (
+            <div className="bg-yellow-100 p-6 rounded-2xl border border-yellow-400 text-center animate-bounce-short">
+              <h3 className="text-2xl font-bold text-yellow-800">🎉 WE HAVE A WINNER!</h3>
+              <p className="text-yellow-700 mt-2 font-bold text-lg">{winner}</p>
+              <p className="text-sm text-yellow-600 mt-1">Check your inbox to arrange pickup!</p>
+            </div>
+          ) : isCompleted ? (
             <div className="bg-green-100 p-6 rounded-2xl border border-green-400 text-center"><h3 className="text-2xl font-bold text-green-800">Sold!</h3></div>
           ) : (
             <div className={`p-6 rounded-2xl border-2 transition-all ${isDealVerified ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-dashed'}`}>
@@ -176,19 +197,15 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{item.title}</h1>
             
-            {/* --- DYNAMIC PRICING AREA --- */}
+            {/* --- PRICING AREA --- */}
             {isRaffle ? (
               <div className="mb-6">
                 <div className="flex items-baseline gap-3 mb-2">
                   <p className="text-3xl font-bold text-purple-600">${ticketPrice}</p>
                   <span className="text-gray-500 font-medium">per ticket</span>
                 </div>
-                {/* Progress Bar */}
                 <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-                  <div 
-                    className="bg-purple-600 h-4 rounded-full transition-all duration-500" 
-                    style={{ width: `${(ticketsSold / totalTickets) * 100}%` }}
-                  ></div>
+                  <div className="bg-purple-600 h-4 rounded-full transition-all duration-500" style={{ width: `${(ticketsSold / totalTickets) * 100}%` }}></div>
                 </div>
                 <p className="text-sm text-gray-600 font-bold">{ticketsSold} / {totalTickets} Sold</p>
               </div>
@@ -200,31 +217,36 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             )}
 
             {/* --- ACTION BUTTONS --- */}
-            {!isCompleted && !isSeller && (
+            {!isCompleted && !winner && (
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-                {isRaffle ? (
-                  // RAFFLE BUTTON
-                  ticketsSold >= totalTickets ? (
-                    <button disabled className="w-full bg-gray-400 text-white py-3 rounded-lg font-bold">Sold Out</button>
-                  ) : (
+                {isSeller ? (
+                  isRaffle ? (
                     <button 
-                      onClick={handleBuyTicket}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold shadow-lg transition flex justify-center items-center gap-2"
+                      onClick={handleDrawWinner}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-bold shadow-lg transition"
                     >
-                      🎟️ Buy Ticket (${ticketPrice})
+                      🎲 Draw Random Winner
                     </button>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic text-center">You are the seller.</p>
                   )
                 ) : (
-                  // AUCTION INPUT
-                  <form onSubmit={handlePlaceBid} className="flex gap-2">
-                    <input type="number" min={Number(currentPrice) + 1} value={bidAmount} onChange={e => setBidAmount(e.target.value)} placeholder={`Bid $${Number(currentPrice)+1}+`} className="flex-1 border p-2 rounded" />
-                    <button className="bg-black text-white px-6 py-2 rounded font-bold">Place Bid</button>
-                  </form>
+                  isRaffle ? (
+                    ticketsSold >= totalTickets ? (
+                      <button disabled className="w-full bg-gray-400 text-white py-3 rounded-lg font-bold">Sold Out</button>
+                    ) : (
+                      <button onClick={handleBuyTicket} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold shadow-lg transition flex justify-center items-center gap-2">🎟️ Buy Ticket (${ticketPrice})</button>
+                    )
+                  ) : (
+                    <form onSubmit={handlePlaceBid} className="flex gap-2">
+                      <input type="number" min={Number(currentPrice) + 1} value={bidAmount} onChange={e => setBidAmount(e.target.value)} placeholder={`Bid $${Number(currentPrice)+1}+`} className="flex-1 border p-2 rounded" />
+                      <button className="bg-black text-white px-6 py-2 rounded font-bold">Place Bid</button>
+                    </form>
+                  )
                 )}
               </div>
             )}
             
-            {isSeller && <p className="text-gray-400 italic mb-4">You are the seller.</p>}
           </div>
 
           <div className="bg-white p-6 rounded-xl border border-gray-100">
@@ -242,7 +264,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         </div>
       </main>
 
-      {/* CHAT & MODALS (Condensed for brevity - they remain the same) */}
+      {/* CHAT MODAL (Standard) */}
       {showChat && (
         <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl shadow-2xl border z-40 h-[500px] flex flex-col">
           <div className="bg-brand-blue text-white p-4 flex justify-between"><h3>Chat</h3><button onClick={() => setShowChat(false)}>✕</button></div>
@@ -253,6 +275,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         </div>
       )}
 
+      {/* SAFETY MODAL (Standard) */}
       {showSafety && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
            <div className="bg-white p-6 rounded-xl text-center">

@@ -18,11 +18,33 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     if (stored) setUser(JSON.parse(stored));
   }, []);
 
-  // 1. IDENTIFY ROLES
+  // 1. HELPER: Compress Image so it fits in the database
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 500; // Resize to 500px wide (Good for verification)
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7)); // Return compressed Base64 string
+        };
+      };
+    });
+  };
+
+  // 2. IDENTIFY ROLES
   const isSeller = user && item && user.email === item.user_email;
   const myRole = isSeller ? 'seller' : 'buyer';
   
-  // 2. GET SELFIE STATUS (Safely handle nulls)
+  // 3. GET SELFIE STATUS
   const mySelfie = isSeller ? meetup?.seller_selfie : meetup?.buyer_selfie;
   const theirSelfie = isSeller ? meetup?.buyer_selfie : meetup?.seller_selfie;
   const isDealVerified = meetup?.seller_selfie && meetup?.buyer_selfie;
@@ -48,40 +70,41 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     });
   };
 
+  // --- UPDATED UPLOAD FUNCTION ---
   const handleSelfieUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setUploading(true);
-    const body = new FormData();
-    body.append('file', file);
-
+    
     try {
-      // Upload to your upload API
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body });
-      const uploadData = await uploadRes.json();
+      // 1. Compress the image in the browser first
+      const compressedBase64 = await compressImage(file);
 
-      if (uploadData.url) {
-        // Save URL to Database
-        const dbRes = await fetch('/api/update-meetup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            listing_id: item.id,
-            user_email: user.email,
-            role: myRole,
-            selfie_url: uploadData.url
-          }),
-        });
-        const dbData = await dbRes.json();
-        
-        if (dbData.success) {
-          setMeetup(dbData.meetup); // Update state immediately so image shows
-          alert("✅ Selfie Uploaded! It will be deleted after the sale.");
-        }
+      // 2. Send the image code DIRECTLY to the update-meetup API
+      const dbRes = await fetch('/api/update-meetup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_id: item.id,
+          user_email: user.email,
+          role: myRole,
+          selfie_url: compressedBase64 // Sending the image data directly
+        }),
+      });
+
+      const dbData = await dbRes.json();
+      
+      if (dbData.success) {
+        setMeetup(dbData.meetup); 
+        alert("✅ Selfie Uploaded! It will be deleted after the sale.");
+      } else {
+        alert("Failed to save verification.");
       }
+
     } catch (err) {
-      alert("Upload failed. Make sure your file is an image.");
+      console.error(err);
+      alert("Error uploading. Please try a different photo.");
     }
     setUploading(false);
   };
@@ -97,7 +120,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
     const data = await res.json();
     if (data.success) {
-      setMeetup(data.meetup); // This clears the selfies from the UI
+      setMeetup(data.meetup);
       alert("Transaction Completed! Selfies have been permanently deleted.");
       setShowChat(false);
     }
@@ -252,14 +275,14 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             
             {mySelfie ? (
                <div className="mb-6">
-                 {/* Added key to force re-render when image updates */}
+                 {/* This image src now works because we saved the Base64 data directly! */}
                  <img key={mySelfie} src={mySelfie} className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-500 shadow-md" />
                  <p className="text-green-600 font-bold mt-2">You are Verified!</p>
                </div>
             ) : (
                <label className="block w-full h-40 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 mb-6 transition">
                  {uploading ? (
-                   <span className="text-blue-500 font-bold animate-pulse">Uploading...</span>
+                   <span className="text-blue-500 font-bold animate-pulse">Processing...</span>
                  ) : (
                    <>
                      <span className="text-4xl mb-2">📸</span>

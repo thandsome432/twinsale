@@ -4,15 +4,34 @@ import { useRouter } from 'next/router';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(''); // NEW: Track what user types
+  const [searchTerm, setSearchTerm] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0); // NEW: Track unread messages
   const router = useRouter();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      
+      // 1. Check immediately
+      checkUnread(userData.email);
+
+      // 2. Check every 5 seconds (Live Notifications!)
+      const interval = setInterval(() => checkUnread(userData.email), 5000);
+      return () => clearInterval(interval);
     }
   }, []);
+
+  const checkUnread = async (email) => {
+    try {
+      const res = await fetch(`/api/unread-count?email=${email}`);
+      const data = await res.json();
+      setUnreadCount(data.count);
+    } catch (e) {
+      console.error("Failed to check messages");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -20,11 +39,9 @@ export default function Navbar() {
     router.push('/login');
   };
 
-  // NEW: Search Function
   const handleSearch = (e) => {
-    e.preventDefault(); // Stop page reload
+    e.preventDefault();
     if (searchTerm.trim()) {
-      // Go to Homepage with ?search=...
       router.push(`/?search=${encodeURIComponent(searchTerm)}`);
     }
   };
@@ -38,7 +55,7 @@ export default function Navbar() {
           TwinSale <span className="text-green-400">.com</span>
         </Link>
 
-        {/* SEARCH BAR (Now Functional!) */}
+        {/* SEARCH BAR */}
         <form onSubmit={handleSearch} className="hidden md:flex flex-1 mx-8 max-w-2xl">
           <input 
             type="text" 
@@ -52,7 +69,7 @@ export default function Navbar() {
           </button>
         </form>
 
-        {/* RIGHT SIDE: Buttons & User Info */}
+        {/* RIGHT SIDE */}
         <div className="flex items-center gap-4">
           
           <Link href="/" className="text-white font-bold hover:text-green-300 transition hidden sm:block">
@@ -63,10 +80,19 @@ export default function Navbar() {
             + Sell Item
           </Link>
 
-          {/* DYNAMIC SECTION */}
           {user ? (
             <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
-              <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative" title="My Inbox">📬</Link>
+              
+              {/* INBOX WITH BADGE */}
+              <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative" title="My Inbox">
+                📬
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+
               <Link href="/profile" className="text-sm font-light hidden sm:block text-white hover:text-blue-200 hover:underline cursor-pointer">
                 Hello, <span className="font-bold">{user.email}</span>
               </Link>

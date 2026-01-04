@@ -6,8 +6,10 @@ export default async function handler(req, res) {
   if (!email) return res.status(400).json({ error: 'Email required' });
 
   try {
-    // Fetch ALL messages where I am the sender OR the receiver
-    // We also JOIN with the 'listings' table to get the item title and photo
+    // 1. (NEW) Mark all my received messages as READ because I am opening the inbox
+    await db.query("UPDATE messages SET is_read = TRUE WHERE receiver_email = $1", [email]);
+
+    // 2. Fetch the messages (Same as before)
     const query = `
       SELECT 
         m.id, m.listing_id, m.sender_email, m.receiver_email, m.content, m.created_at,
@@ -19,8 +21,8 @@ export default async function handler(req, res) {
     `;
     
     const result = await db.query(query, [email]);
-
     res.status(200).json({ messages: result.rows });
+
   } catch (error) {
     console.error("Inbox Error:", error);
     res.status(500).json({ error: 'Failed to load inbox' });

@@ -12,11 +12,15 @@ export default async function handler(req, res) {
       [email]
     );
 
-    // 2. Fetch items I have WON (Optional: You can add this logic later)
-    // For now, let's just show what you are selling.
+    // 2. Fetch items I have WON
+    const myWins = await db.query(
+      "SELECT * FROM listings WHERE winner_email = $1 ORDER BY id DESC", 
+      [email]
+    );
 
     res.status(200).json({ 
-      listings: myListings.rows 
+      listings: myListings.rows,
+      wins: myWins.rows
     });
 
   } catch (error) {

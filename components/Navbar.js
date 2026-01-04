@@ -1,68 +1,31 @@
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+{/* DYNAMIC SECTION: Show User Info OR Login button */}
+{user ? (
+  <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
+    
+    {/* Inbox Link */}
+    <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative" title="My Inbox">
+      📬
+    </Link>
 
-export default function Navbar() {
-  const [user, setUser] = useState(null);
-  const router = useRouter();
+    {/* PROFILE LINK (Clicking Name goes to Profile) */}
+    <Link href="/profile" className="text-sm font-light hidden sm:block text-white hover:text-blue-200 hover:underline cursor-pointer">
+      Hello, <span className="font-bold">{user.email}</span>
+    </Link>
 
-  // Check for logged-in user when the page loads
-  useEffect(() => {
-    // We try to read the 'user' data from the browser's storage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  const handleLogout = () => {
-    // Remove user data and send them to login page
-    localStorage.removeItem('user');
-    localStorage.removeItem('token'); 
-    setUser(null);
-    router.push('/login');
-  };
-
-  return (
-    <nav className="bg-brand-blue p-4 text-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto flex justify-between items-center">
-        {/* Logo */}
-        <Link href="/" className="text-2xl font-bold tracking-wider flex items-center gap-2">
-          TwinSale<span className="text-brand-safe">.com</span>
-        </Link>
-
-        {/* Links */}
-        <div className="flex items-center space-x-6 font-semibold">
-          <Link href="/" className="hover:text-gray-300">Marketplace</Link>
-          
-          <Link href="/post-item" className="bg-brand-safe px-4 py-2 rounded hover:bg-green-600 transition shadow-md">
-            + Sell Item
-          </Link>
-
-          {/* DYNAMIC SECTION: Show User Info OR Login button */}
-          {user ? (
-            <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
-              
-              {/* NEW: Inbox Link */}
-              <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative">
-                📬
-              </Link>
-
-              <span className="text-sm font-light hidden sm:block">
-                Hello, <span className="font-bold">{user.email || 'User'}</span>
-              </span>
-              <button 
-                onClick={handleLogout} 
-                className="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="hover:text-gray-300">Login</Link>
-          )}
-        </div>
-      </div>
-    </nav>
-  );
-}
+    <button 
+      onClick={handleLogout} 
+      className="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition text-white"
+    >
+      Logout
+    </button>
+  </div>
+) : (
+  <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
+    <Link href="/login" className="text-white hover:text-blue-200 transition font-medium">
+      Log in
+    </Link>
+    <Link href="/signup" className="bg-white text-brand-blue px-4 py-2 rounded-full font-bold hover:bg-blue-50 transition shadow-md">
+      Sign up
+    </Link>
+  </div>
+)}

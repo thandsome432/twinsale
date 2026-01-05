@@ -16,7 +16,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // --- DATA STATES ---
-  const [sellerRating, setSellerRating] = useState(null); // NEW: Store star rating
+  const [sellerRating, setSellerRating] = useState(null); 
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState(chats);
   const [meetup, setMeetup] = useState(meetupStatus);
@@ -34,16 +34,18 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   const router = useRouter();
 
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored) setUser(JSON.parse(stored));
+    try {
+        const stored = localStorage.getItem('user');
+        if (stored) setUser(JSON.parse(stored));
 
-    // NEW: Fetch Seller Rating
-    if (item && item.user_email) {
-      fetch(`/api/reviews?email=${item.user_email}`)
-        .then(res => res.json())
-        .then(data => setSellerRating(data))
-        .catch(err => console.error("Rating fetch error", err));
-    }
+        // Fetch Seller Rating
+        if (item && item.user_email) {
+        fetch(`/api/reviews?email=${item.user_email}`)
+            .then(res => res.json())
+            .then(data => setSellerRating(data))
+            .catch(err => console.error("Rating fetch error", err));
+        }
+    } catch(e) {}
   }, [item]);
 
   const compressImage = (file) => {
@@ -104,7 +106,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     e.preventDefault();
     setProcessing(true);
 
-    // Fake delay for realism
     setTimeout(async () => {
         const res = await fetch('/api/buy-ticket', {
             method: 'POST',
@@ -177,18 +178,21 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     if (await res.json().success) { alert("Done!"); router.push('/'); }
   };
 
-  if (!item) return <div className="text-center mt-20">Item not found</div>;
+  if (!item) return <div className="text-center mt-32">Item not found</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <Navbar />
       
-      <main className="max-w-5xl mx-auto p-4 md:p-8 mt-6 grid md:grid-cols-2 gap-10">
+      {/* FIXED PADDING: Changed 'mt-6' to 'pt-36'. 
+          This pushes content down below the floating navbar 
+      */}
+      <main className="max-w-5xl mx-auto p-4 md:p-8 pt-36 grid md:grid-cols-2 gap-10">
         
         {/* LEFT: Image */}
         <div className="space-y-6">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border">
-            <div className="aspect-square bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+          <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+            <div className="aspect-square bg-gray-200 rounded-2xl overflow-hidden flex items-center justify-center relative">
                {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="text-gray-400">No Photo</span>}
                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase text-white shadow-md ${isRaffle ? 'bg-purple-600' : 'bg-black'}`}>
                  {isRaffle ? '🎟️ Raffle' : '🔨 Auction'}
@@ -198,15 +202,15 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
           
           {/* Winner / Safety Box */}
           {winner ? (
-            <div className="bg-yellow-100 p-6 rounded-2xl border border-yellow-400 text-center animate-bounce-short">
+            <div className="bg-yellow-100 p-6 rounded-3xl border border-yellow-400 text-center animate-bounce-short">
               <h3 className="text-2xl font-bold text-yellow-800">🎉 WE HAVE A WINNER!</h3>
               <p className="text-yellow-700 mt-2 font-bold text-lg">{winner}</p>
               <p className="text-sm text-yellow-600 mt-1">Check your inbox to arrange pickup!</p>
             </div>
           ) : isCompleted ? (
-            <div className="bg-green-100 p-6 rounded-2xl border border-green-400 text-center"><h3 className="text-2xl font-bold text-green-800">Sold!</h3></div>
+            <div className="bg-green-100 p-6 rounded-3xl border border-green-400 text-center"><h3 className="text-2xl font-bold text-green-800">Sold!</h3></div>
           ) : (
-            <div className={`p-6 rounded-2xl border-2 transition-all ${isDealVerified ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-dashed'}`}>
+            <div className={`p-6 rounded-3xl border-2 transition-all ${isDealVerified ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-dashed'}`}>
               <h3 className={`font-bold text-lg mb-2 ${isDealVerified ? 'text-green-800' : 'text-gray-500'}`}>
                 {isDealVerified ? '🔓 Location Unlocked' : '🔒 Location Locked'}
               </h3>
@@ -218,7 +222,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         {/* RIGHT: Info & Action */}
         <div className="space-y-6">
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{item.title}</h1>
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-2 leading-tight">{item.title}</h1>
             
             {isRaffle ? (
               <div className="mb-6">
@@ -239,22 +243,22 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             )}
 
             {!isCompleted && !winner && (
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
                 {isSeller ? (
                   isRaffle ? (
-                    <button onClick={handleDrawWinner} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-bold shadow-lg transition">🎲 Draw Random Winner</button>
+                    <button onClick={handleDrawWinner} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg transition text-lg">🎲 Draw Random Winner</button>
                   ) : <p className="text-sm text-gray-500 italic text-center">You are the seller.</p>
                 ) : (
                   isRaffle ? (
                     ticketsSold >= totalTickets ? (
-                      <button disabled className="w-full bg-gray-400 text-white py-3 rounded-lg font-bold">Sold Out</button>
+                      <button disabled className="w-full bg-gray-400 text-white py-4 rounded-xl font-bold text-lg">Sold Out</button>
                     ) : (
-                      <button onClick={openCheckout} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold shadow-lg transition flex justify-center items-center gap-2">🎟️ Buy Ticket (${ticketPrice})</button>
+                      <button onClick={openCheckout} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold shadow-lg transition flex justify-center items-center gap-2 text-lg">🎟️ Buy Ticket (${ticketPrice})</button>
                     )
                   ) : (
                     <form onSubmit={handlePlaceBid} className="flex gap-2">
-                      <input type="number" min={Number(currentPrice) + 1} value={bidAmount} onChange={e => setBidAmount(e.target.value)} placeholder={`Bid $${Number(currentPrice)+1}+`} className="flex-1 border p-2 rounded" />
-                      <button className="bg-black text-white px-6 py-2 rounded font-bold">Place Bid</button>
+                      <input type="number" min={Number(currentPrice) + 1} value={bidAmount} onChange={e => setBidAmount(e.target.value)} placeholder={`Bid $${Number(currentPrice)+1}+`} className="flex-1 border p-4 rounded-xl bg-gray-50 text-lg outline-none focus:ring-2 focus:ring-black" />
+                      <button className="bg-black text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition">Place Bid</button>
                     </form>
                   )
                 )}
@@ -263,17 +267,17 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             
           </div>
 
-          {/* NEW: SELLER RATING BOX */}
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+          {/* SELLER RATING BOX */}
+          <div className="bg-white p-5 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm">
              <div>
-               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Sold By</p>
-               <p className="font-bold text-gray-900">{item.user_email}</p>
+               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Sold By</p>
+               <p className="font-bold text-gray-900 text-lg">{item.user_email}</p>
              </div>
              <div className="text-right">
                {sellerRating ? (
                  <>
-                   <p className="text-yellow-500 text-xl font-bold">★ {sellerRating.average}</p>
-                   <p className="text-xs text-gray-400">({sellerRating.count} reviews)</p>
+                   <p className="text-yellow-500 text-xl font-black">★ {sellerRating.average}</p>
+                   <p className="text-xs text-gray-400 font-bold">({sellerRating.count} reviews)</p>
                  </>
                ) : (
                  <span className="text-xs text-gray-400">Loading Rating...</span>
@@ -281,16 +285,16 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
              </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border border-gray-100">
-             <h3 className="font-bold mb-2">Description</h3>
-             <p className="text-gray-600 whitespace-pre-line">{item.description}</p>
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+             <h3 className="font-bold mb-3 text-lg">Description</h3>
+             <p className="text-gray-600 whitespace-pre-line leading-relaxed">{item.description}</p>
           </div>
 
           <div className="flex gap-4">
              {user ? (
-               <button onClick={() => setShowChat(!showChat)} className="flex-1 bg-brand-blue text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-800 transition">💬 Message Seller</button>
+               <button onClick={() => setShowChat(!showChat)} className="flex-1 bg-brand-blue text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-blue-800 transition text-lg">💬 Message Seller</button>
              ) : (
-               <button className="flex-1 bg-gray-300 text-gray-500 py-4 rounded-xl font-bold cursor-not-allowed">Log in to Chat</button>
+               <button className="flex-1 bg-gray-300 text-gray-500 py-4 rounded-2xl font-bold cursor-not-allowed">Log in to Chat</button>
              )}
           </div>
         </div>
@@ -298,58 +302,58 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
       {/* --- CHECKOUT MODAL --- */}
       {showCheckout && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white max-w-md w-full rounded-[40px] p-8 shadow-2xl relative animate-fade-in">
                 
                 {!processing && !paymentSuccess && (
-                    <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black font-bold">✕</button>
+                    <button onClick={() => setShowCheckout(false)} className="absolute top-6 right-6 text-gray-400 hover:text-black font-bold text-xl">✕</button>
                 )}
 
                 {paymentSuccess ? (
                     <div className="text-center py-10">
-                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 animate-bounce">✓</div>
-                        <h3 className="text-2xl font-bold text-gray-900">Payment Approved!</h3>
-                        <p className="text-gray-500 mt-2">You have successfully entered the raffle.</p>
+                        <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 animate-bounce">✓</div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-2">Approved!</h3>
+                        <p className="text-gray-500">You're in the raffle. Good luck!</p>
                     </div>
                 ) : processing ? (
-                    <div className="text-center py-10">
-                         <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-                         <h3 className="text-xl font-bold text-gray-900">Processing Payment...</h3>
-                         <p className="text-sm text-gray-500">Contacting Bank...</p>
+                    <div className="text-center py-12">
+                         <div className="w-20 h-20 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-6"></div>
+                         <h3 className="text-2xl font-bold text-gray-900">Processing...</h3>
+                         <p className="text-sm text-gray-500 mt-2">Connecting to Secure Gateway</p>
                     </div>
                 ) : (
                     <form onSubmit={handlePayment}>
-                        <h2 className="text-2xl font-bold mb-4">Checkout</h2>
-                        <div className="bg-purple-50 p-4 rounded-xl mb-6 border border-purple-100 flex gap-4 items-center">
-                            <div className="w-12 h-12 bg-purple-200 rounded flex items-center justify-center text-purple-700 text-xl">🎟️</div>
+                        <h2 className="text-3xl font-bold mb-6">Checkout</h2>
+                        <div className="bg-purple-50 p-4 rounded-3xl mb-8 border border-purple-100 flex gap-4 items-center">
+                            <div className="w-14 h-14 bg-purple-200 rounded-2xl flex items-center justify-center text-purple-700 text-2xl">🎟️</div>
                             <div>
-                                <p className="font-bold text-gray-900">{item.title}</p>
+                                <p className="font-bold text-gray-900 text-lg">{item.title}</p>
                                 <p className="text-sm text-gray-500">1 x Raffle Ticket</p>
                             </div>
-                            <div className="ml-auto font-bold text-lg">${ticketPrice}</div>
+                            <div className="ml-auto font-black text-xl text-purple-900">${ticketPrice}</div>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Card Number</label>
-                                <input type="text" placeholder="0000 0000 0000 0000" className="w-full border p-3 rounded-lg bg-gray-50 font-mono" required />
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-2">Card Number</label>
+                                <input type="text" placeholder="0000 0000 0000 0000" className="w-full border p-4 rounded-2xl bg-gray-50 font-mono text-lg outline-none focus:ring-2 focus:ring-purple-500" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Expiry</label>
-                                    <input type="text" placeholder="MM/YY" className="w-full border p-3 rounded-lg bg-gray-50 font-mono" required />
+                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-2">Expiry</label>
+                                    <input type="text" placeholder="MM/YY" className="w-full border p-4 rounded-2xl bg-gray-50 font-mono text-lg outline-none focus:ring-2 focus:ring-purple-500" required />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">CVC</label>
-                                    <input type="text" placeholder="123" className="w-full border p-3 rounded-lg bg-gray-50 font-mono" required />
+                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-2">CVC</label>
+                                    <input type="text" placeholder="123" className="w-full border p-4 rounded-2xl bg-gray-50 font-mono text-lg outline-none focus:ring-2 focus:ring-purple-500" required />
                                 </div>
                             </div>
                         </div>
 
-                        <button className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition mt-6 flex justify-center items-center gap-2">
+                        <button className="w-full bg-black text-white py-5 rounded-2xl font-bold text-xl shadow-xl hover:scale-[1.02] transition mt-8 flex justify-center items-center gap-2">
                              Pay ${ticketPrice}.00
                         </button>
-                        <p className="text-xs text-center text-gray-400 mt-4">🔒 Payments are secure and encrypted.</p>
+                        <p className="text-xs text-center text-gray-400 mt-6">🔒 256-bit Secure Encryption</p>
                     </form>
                 )}
             </div>
@@ -358,43 +362,54 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
       {/* --- CHAT MODAL --- */}
       {showChat && (
-        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl shadow-2xl border z-40 h-[500px] flex flex-col">
-          <div className="bg-brand-blue text-white p-4 flex justify-between"><h3>Chat</h3><button onClick={() => setShowChat(false)}>✕</button></div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">{chatHistory.map((m,i) => <div key={i} className={m.sender_email===user?.email?'text-right':'text-left'}><span className="bg-gray-100 p-2 rounded inline-block">{m.content}</span></div>)}</div>
-          {isDealVerified && !isCompleted && <div className="p-2"><button onClick={handleCompleteTransaction} className="w-full bg-green-600 text-white py-2 rounded">✅ Complete Sale</button></div>}
-          {!isDealVerified && !isCompleted && <div className="p-2 bg-blue-50 flex justify-between"><span className="text-xs">Safety Check</span><button onClick={() => setShowSafety(true)} className="text-xs bg-white border px-2 rounded">📷 Verify</button></div>}
-          <form onSubmit={handleSendMessage} className="p-2 border-t flex"><input value={message} onChange={e=>setMessage(e.target.value)} className="flex-1 border p-2"/><button>➤</button></form>
+        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-3xl shadow-2xl border border-gray-200 z-40 h-[500px] flex flex-col overflow-hidden">
+          <div className="bg-brand-blue text-white p-5 flex justify-between items-center">
+              <h3 className="font-bold text-lg">Chat with Seller</h3>
+              <button onClick={() => setShowChat(false)} className="text-white/80 hover:text-white font-bold text-xl">✕</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+              {chatHistory.map((m,i) => (
+                  <div key={i} className={`flex ${m.sender_email===user?.email?'justify-end':'justify-start'}`}>
+                      <span className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm shadow-sm ${m.sender_email===user?.email?'bg-blue-600 text-white rounded-br-none':'bg-white text-gray-800 rounded-bl-none'}`}>
+                          {m.content}
+                      </span>
+                  </div>
+              ))}
+          </div>
+          
+          {/* Action Area */}
+          <div className="bg-white p-3 border-t">
+              {isDealVerified && !isCompleted && <button onClick={handleCompleteTransaction} className="w-full bg-green-500 text-white py-3 rounded-xl font-bold mb-3 shadow-md hover:bg-green-600 transition">✅ Complete Sale</button>}
+              {!isDealVerified && !isCompleted && <div className="flex justify-between items-center bg-blue-50 p-3 rounded-xl mb-3 border border-blue-100"><span className="text-xs text-blue-800 font-bold">Safety Verification</span><button onClick={() => setShowSafety(true)} className="text-xs bg-white text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-blue-50">📷 Verify</button></div>}
+              
+              <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input value={message} onChange={e=>setMessage(e.target.value)} className="flex-1 border bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type message..." />
+                  <button className="bg-brand-blue text-white w-12 rounded-xl flex items-center justify-center font-bold shadow-md hover:bg-blue-700 transition">➤</button>
+              </form>
+          </div>
         </div>
       )}
 
       {/* --- SAFETY MODAL --- */}
       {showSafety && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-           <div className="bg-white p-6 rounded-xl text-center">
-             <h3>Safety Check 🛡️</h3>
-             {mySelfie ? <img src={mySelfie} className="w-32 h-32 rounded-full mx-auto border-4 border-green-500 mt-4"/> : 
-               <label className="block border-2 border-dashed p-10 mt-4 cursor-pointer">
-                 {uploading ? "Uploading..." : "Tap to Take Selfie"}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+           <div className="bg-white p-8 rounded-[40px] text-center max-w-sm w-full animate-fade-in shadow-2xl">
+             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🛡️</div>
+             <h3 className="text-2xl font-bold mb-2">Safety Check</h3>
+             <p className="text-gray-500 text-sm mb-6">Upload a selfie to verify your identity and unlock the meetup location.</p>
+             
+             {mySelfie ? <img src={mySelfie} className="w-40 h-40 rounded-full mx-auto border-4 border-green-500 object-cover shadow-lg mb-6"/> : 
+               <label className="block border-2 border-dashed border-gray-300 p-10 rounded-3xl cursor-pointer hover:bg-gray-50 transition mb-6 group">
+                 <div className="text-4xl mb-2 group-hover:scale-110 transition">📷</div>
+                 <span className="font-bold text-gray-400 group-hover:text-gray-600">Tap to Take Selfie</span>
                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleSelfieUpload}/>
                </label>
              }
-             <button onClick={() => setShowSafety(false)} className="mt-4 bg-gray-200 w-full py-2 rounded">Close</button>
+             
+             <button onClick={() => setShowSafety(false)} className="w-full bg-gray-100 text-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-200 transition">Close</button>
            </div>
         </div>
       )}
     </div>
   );
-}
-
-export async function getServerSideProps(context) {
-  const { id } = context.params;
-  const itemRes = await db.query("SELECT * FROM listings WHERE id = $1", [id]);
-  const chatRes = await db.query("SELECT * FROM messages WHERE listing_id = $1 ORDER BY created_at ASC", [id]);
-  const meetupRes = await db.query("SELECT * FROM meetups WHERE listing_id = $1", [id]);
-  
-  return { props: { 
-    item: JSON.parse(JSON.stringify(itemRes.rows[0] || null)), 
-    chats: JSON.parse(JSON.stringify(chatRes.rows)),
-    meetupStatus: JSON.parse(JSON.stringify(meetupRes.rows[0] || null))
-  }};
 }

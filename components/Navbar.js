@@ -8,20 +8,30 @@ export default function Navbar() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      checkUnread(userData.email);
+    // Safer LocalStorage Check
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        checkUnread(userData.email);
+      }
+    } catch (err) {
+      console.error("User data error", err);
+      // If data is corrupt, clear it so the app doesn't crash loop
+      localStorage.removeItem('user');
     }
   }, []);
 
   const checkUnread = async (email) => {
+    if (!email) return;
     try {
       const res = await fetch(`/api/unread-count?email=${email}`);
       const data = await res.json();
-      setUnreadCount(data.count);
-    } catch (e) {}
+      setUnreadCount(data.count || 0);
+    } catch (e) {
+      // Ignore errors silently
+    }
   };
 
   const handleLogout = () => {
@@ -30,8 +40,14 @@ export default function Navbar() {
     router.push('/login');
   };
 
+  // Safe Avatar Helper
+  const getAvatarLetter = () => {
+    if (user && user.email) return user.email[0].toUpperCase();
+    if (user && user.username) return user.username[0].toUpperCase();
+    return "U"; // Default if missing
+  };
+
   return (
-    // THE BUBBLE CONTAINER
     <div className="fixed top-6 left-0 right-0 flex justify-center z-50 px-4">
       <nav className="bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl rounded-full px-6 py-3 flex items-center justify-between w-full max-w-5xl transition-all hover:bg-white/90">
         
@@ -51,7 +67,6 @@ export default function Navbar() {
         {/* RIGHT SIDE ACTIONS */}
         <div className="flex items-center gap-3">
           
-          {/* SELL BUTTON (Only show if logged in, or redirect to login) */}
           {user ? (
              <Link href="/post-item" className="hidden sm:flex bg-black text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg hover:scale-105 transition transform">
                + Sell
@@ -60,6 +75,7 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-3 pl-3 border-l border-gray-300">
+              
               {/* Inbox Bubble */}
               <Link href="/inbox" className="relative p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
                 📬
@@ -70,14 +86,14 @@ export default function Navbar() {
                 )}
               </Link>
               
-              {/* User Avatar */}
+              {/* User Avatar (CRASH PROOF VERSION) */}
               <Link href="/profile">
                 <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-orange-400">
-                  {user.email[0].toUpperCase()}
+                  {getAvatarLetter()}
                 </div>
               </Link>
               
-              {/* Logout (Small icon for clean look) */}
+              {/* Logout */}
               <button onClick={handleLogout} className="text-gray-400 hover:text-black text-xs font-bold ml-2">
                 ✕
               </button>

@@ -40,18 +40,23 @@ export default function Navbar() {
           Twin<span className="text-orange-500">Sale</span>
         </Link>
 
-        {/* CENTER LINKS (Hidden on small mobile) */}
-        <div className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
-          <Link href="/" className="hover:text-black transition">Marketplace</Link>
-          <Link href="/profile" className="hover:text-black transition">My Wins</Link>
-        </div>
+        {/* CENTER LINKS (HIDDEN IF LOGGED OUT) */}
+        {user && (
+          <div className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
+            <Link href="/" className="hover:text-black transition">Marketplace</Link>
+            <Link href="/profile" className="hover:text-black transition">My Wins</Link>
+          </div>
+        )}
 
         {/* RIGHT SIDE ACTIONS */}
         <div className="flex items-center gap-3">
           
-          <Link href="/post-item" className="hidden sm:flex bg-black text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg hover:scale-105 transition transform">
-            + Sell
-          </Link>
+          {/* SELL BUTTON (Only show if logged in, or redirect to login) */}
+          {user ? (
+             <Link href="/post-item" className="hidden sm:flex bg-black text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg hover:scale-105 transition transform">
+               + Sell
+             </Link>
+          ) : null}
 
           {user ? (
             <div className="flex items-center gap-3 pl-3 border-l border-gray-300">
@@ -71,6 +76,11 @@ export default function Navbar() {
                   {user.email[0].toUpperCase()}
                 </div>
               </Link>
+              
+              {/* Logout (Small icon for clean look) */}
+              <button onClick={handleLogout} className="text-gray-400 hover:text-black text-xs font-bold ml-2">
+                ✕
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">

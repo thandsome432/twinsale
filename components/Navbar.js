@@ -4,8 +4,7 @@ import { useRouter } from 'next/router';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [unreadCount, setUnreadCount] = useState(0); // NEW: Track unread messages
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -13,13 +12,7 @@ export default function Navbar() {
     if (storedUser) {
       const userData = JSON.parse(storedUser);
       setUser(userData);
-      
-      // 1. Check immediately
       checkUnread(userData.email);
-
-      // 2. Check every 5 seconds (Live Notifications!)
-      const interval = setInterval(() => checkUnread(userData.email), 5000);
-      return () => clearInterval(interval);
     }
   }, []);
 
@@ -28,9 +21,7 @@ export default function Navbar() {
       const res = await fetch(`/api/unread-count?email=${email}`);
       const data = await res.json();
       setUnreadCount(data.count);
-    } catch (e) {
-      console.error("Failed to check messages");
-    }
+    } catch (e) {}
   };
 
   const handleLogout = () => {
@@ -39,73 +30,60 @@ export default function Navbar() {
     router.push('/login');
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/?search=${encodeURIComponent(searchTerm)}`);
-    }
-  };
-
   return (
-    <nav className="bg-brand-blue p-4 shadow-md sticky top-0 z-50">
-      <div className="max-w-[1920px] mx-auto flex justify-between items-center">
+    // THE BUBBLE CONTAINER
+    <div className="fixed top-6 left-0 right-0 flex justify-center z-50 px-4">
+      <nav className="bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl rounded-full px-6 py-3 flex items-center justify-between w-full max-w-5xl transition-all hover:bg-white/90">
         
         {/* LOGO */}
-        <Link href="/" className="text-white text-2xl font-extrabold tracking-tight flex items-center gap-2">
-          TwinSale <span className="text-green-400">.com</span>
+        <Link href="/" className="text-xl font-bold tracking-tight flex items-center gap-1 text-gray-900 mr-4">
+          Twin<span className="text-orange-500">Sale</span>
         </Link>
 
-        {/* SEARCH BAR */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 mx-8 max-w-2xl">
-          <input 
-            type="text" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search for cars, phones, clothes..." 
-            className="w-full px-4 py-2 rounded-l-full border-none focus:ring-2 focus:ring-green-400 outline-none"
-          />
-          <button type="submit" className="bg-green-500 text-white px-6 rounded-r-full hover:bg-green-600 transition font-bold">
-            🔍
-          </button>
-        </form>
+        {/* CENTER LINKS (Hidden on small mobile) */}
+        <div className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
+          <Link href="/" className="hover:text-black transition">Marketplace</Link>
+          <Link href="/profile" className="hover:text-black transition">My Wins</Link>
+        </div>
 
-        {/* RIGHT SIDE */}
-        <div className="flex items-center gap-4">
+        {/* RIGHT SIDE ACTIONS */}
+        <div className="flex items-center gap-3">
           
-          <Link href="/" className="text-white font-bold hover:text-green-300 transition hidden sm:block">
-            Marketplace
-          </Link>
-
-          <Link href="/post-item" className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full font-bold transition shadow-lg flex items-center gap-2">
-            + Sell Item
+          <Link href="/post-item" className="hidden sm:flex bg-black text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg hover:scale-105 transition transform">
+            + Sell
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
-              
-              {/* INBOX WITH BADGE */}
-              <Link href="/inbox" className="text-white hover:text-green-300 transition text-2xl relative" title="My Inbox">
+            <div className="flex items-center gap-3 pl-3 border-l border-gray-300">
+              {/* Inbox Bubble */}
+              <Link href="/inbox" className="relative p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
                 📬
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white animate-pulse">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
                     {unreadCount}
                   </span>
                 )}
               </Link>
-
-              <Link href="/profile" className="text-sm font-light hidden sm:block text-white hover:text-blue-200 hover:underline cursor-pointer">
-                Hello, <span className="font-bold">{user.email}</span>
+              
+              {/* User Avatar */}
+              <Link href="/profile">
+                <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-orange-400">
+                  {user.email[0].toUpperCase()}
+                </div>
               </Link>
-              <button onClick={handleLogout} className="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition text-white">Logout</button>
             </div>
           ) : (
-            <div className="flex items-center gap-4 border-l pl-6 border-blue-700">
-              <Link href="/login" className="text-white hover:text-blue-200 transition font-medium">Log in</Link>
-              <Link href="/signup" className="bg-white text-brand-blue px-4 py-2 rounded-full font-bold hover:bg-blue-50 transition shadow-md">Sign up</Link>
+            <div className="flex items-center gap-2">
+              <Link href="/login" className="px-5 py-2 rounded-full font-bold text-sm text-gray-700 hover:bg-gray-100 transition">
+                Log In
+              </Link>
+              <Link href="/signup" className="bg-orange-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md hover:bg-orange-600 transition">
+                Sign Up
+              </Link>
             </div>
           )}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

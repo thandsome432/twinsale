@@ -6,22 +6,23 @@ import { useRouter } from 'next/router';
 export default function ListingDetails({ item, chats = [], meetupStatus = {} }) {
   const [user, setUser] = useState(null);
   
-  // Modals
+  // --- MODAL STATES ---
   const [showChat, setShowChat] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false); // NEW: Checkout Modal
+  const [showCheckout, setShowCheckout] = useState(false);
 
-  // Checkout State
+  // --- CHECKOUT STATES ---
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Chat & Meetup
+  // --- DATA STATES ---
+  const [sellerRating, setSellerRating] = useState(null); // NEW: Store star rating
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState(chats);
   const [meetup, setMeetup] = useState(meetupStatus);
   const [uploading, setUploading] = useState(false);
   
-  // Auction & Raffle Data
+  // --- AUCTION & RAFFLE STATE ---
   const [bidAmount, setBidAmount] = useState('');
   const [currentPrice, setCurrentPrice] = useState(item ? item.price : 0);
   const [bidCount, setBidCount] = useState(item ? item.bid_count : 0);
@@ -35,7 +36,15 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (stored) setUser(JSON.parse(stored));
-  }, []);
+
+    // NEW: Fetch Seller Rating
+    if (item && item.user_email) {
+      fetch(`/api/reviews?email=${item.user_email}`)
+        .then(res => res.json())
+        .then(data => setSellerRating(data))
+        .catch(err => console.error("Rating fetch error", err));
+    }
+  }, [item]);
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
@@ -67,7 +76,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
 
   // --- ACTIONS ---
 
-  // 1. AUCTION BID
   const handlePlaceBid = async (e) => {
     e.preventDefault();
     if (!user) return alert("Please log in.");
@@ -87,34 +95,28 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
     } else alert(data.error);
   };
 
-  // 2. RAFFLE TICKET (Opens Checkout)
   const openCheckout = () => {
     if (!user) return alert("Please log in.");
     setShowCheckout(true);
   };
 
-  // 3. FAKE PAYMENT PROCESSOR
   const handlePayment = async (e) => {
     e.preventDefault();
     setProcessing(true);
 
-    // Fake delay to feel like a real bank transaction
+    // Fake delay for realism
     setTimeout(async () => {
-        
-        // NOW we actually buy the ticket
         const res = await fetch('/api/buy-ticket', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ listing_id: item.id, user_email: user.email }),
         });
         const data = await res.json();
-
         setProcessing(false);
 
         if (data.success) {
             setPaymentSuccess(true);
             setTicketsSold(ticketsSold + 1);
-            // Close modal after 2 seconds so they see the success checkmark
             setTimeout(() => {
                 setShowCheckout(false);
                 setPaymentSuccess(false);
@@ -122,8 +124,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         } else {
             alert(data.error);
         }
-
-    }, 2000); // 2 second delay
+    }, 2000);
   };
 
   const handleDrawWinner = async () => {
@@ -262,14 +263,32 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
             
           </div>
 
+          {/* NEW: SELLER RATING BOX */}
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+             <div>
+               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Sold By</p>
+               <p className="font-bold text-gray-900">{item.user_email}</p>
+             </div>
+             <div className="text-right">
+               {sellerRating ? (
+                 <>
+                   <p className="text-yellow-500 text-xl font-bold">★ {sellerRating.average}</p>
+                   <p className="text-xs text-gray-400">({sellerRating.count} reviews)</p>
+                 </>
+               ) : (
+                 <span className="text-xs text-gray-400">Loading Rating...</span>
+               )}
+             </div>
+          </div>
+
           <div className="bg-white p-6 rounded-xl border border-gray-100">
              <h3 className="font-bold mb-2">Description</h3>
-             <p className="text-gray-600">{item.description}</p>
+             <p className="text-gray-600 whitespace-pre-line">{item.description}</p>
           </div>
 
           <div className="flex gap-4">
              {user ? (
-               <button onClick={() => setShowChat(!showChat)} className="flex-1 bg-brand-blue text-white py-4 rounded-xl font-bold shadow-lg">💬 Message Seller</button>
+               <button onClick={() => setShowChat(!showChat)} className="flex-1 bg-brand-blue text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-800 transition">💬 Message Seller</button>
              ) : (
                <button className="flex-1 bg-gray-300 text-gray-500 py-4 rounded-xl font-bold cursor-not-allowed">Log in to Chat</button>
              )}
@@ -282,7 +301,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
             <div className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl relative">
                 
-                {/* Close Button */}
                 {!processing && !paymentSuccess && (
                     <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black font-bold">✕</button>
                 )}
@@ -302,8 +320,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
                 ) : (
                     <form onSubmit={handlePayment}>
                         <h2 className="text-2xl font-bold mb-4">Checkout</h2>
-                        
-                        {/* Order Summary */}
                         <div className="bg-purple-50 p-4 rounded-xl mb-6 border border-purple-100 flex gap-4 items-center">
                             <div className="w-12 h-12 bg-purple-200 rounded flex items-center justify-center text-purple-700 text-xl">🎟️</div>
                             <div>
@@ -313,7 +329,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
                             <div className="ml-auto font-bold text-lg">${ticketPrice}</div>
                         </div>
 
-                        {/* Fake Credit Card Fields */}
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Card Number</label>
@@ -334,7 +349,6 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
                         <button className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition mt-6 flex justify-center items-center gap-2">
                              Pay ${ticketPrice}.00
                         </button>
-                        
                         <p className="text-xs text-center text-gray-400 mt-4">🔒 Payments are secure and encrypted.</p>
                     </form>
                 )}
@@ -342,7 +356,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         </div>
       )}
 
-      {/* CHAT & SAFETY MODALS (Kept same as before) */}
+      {/* --- CHAT MODAL --- */}
       {showChat && (
         <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl shadow-2xl border z-40 h-[500px] flex flex-col">
           <div className="bg-brand-blue text-white p-4 flex justify-between"><h3>Chat</h3><button onClick={() => setShowChat(false)}>✕</button></div>
@@ -353,6 +367,7 @@ export default function ListingDetails({ item, chats = [], meetupStatus = {} }) 
         </div>
       )}
 
+      {/* --- SAFETY MODAL --- */}
       {showSafety && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
            <div className="bg-white p-6 rounded-xl text-center">
@@ -376,6 +391,7 @@ export async function getServerSideProps(context) {
   const itemRes = await db.query("SELECT * FROM listings WHERE id = $1", [id]);
   const chatRes = await db.query("SELECT * FROM messages WHERE listing_id = $1 ORDER BY created_at ASC", [id]);
   const meetupRes = await db.query("SELECT * FROM meetups WHERE listing_id = $1", [id]);
+  
   return { props: { 
     item: JSON.parse(JSON.stringify(itemRes.rows[0] || null)), 
     chats: JSON.parse(JSON.stringify(chatRes.rows)),
